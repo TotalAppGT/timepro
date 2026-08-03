@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  TRIAL
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+model Organization {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  plan                Plan     @default(TRIAL)
+  planCode            String   @default("BASIC")
+  subscriptionStatus  String   @default("TRIAL") // TRIAL | ACTIVE | PAST_DUE | CANCELLED | EXPIRED
+  trialStartedAt      DateTime @default(now())
+  trialEndsAt         DateTime?
+  renewsAt            DateTime?
+  stripeCustomerId    String?  @unique
+  stripeSubscriptionId String? @unique
+  brandColor          String   @default("#0f766e")
+  logoUrl             String?
+  phone               String?
+  address             String?
+  nit                 String?
+  invoicePrefix       String   @default("TP")
+  currency            String   @default("GTQ")
+  whatsappPhone       String?
+  notifyWhatsApp      Boolean  @default(false)
+  notifyEmail         Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users        User[]
+  customers    Customer[]
+  projects     Project[]
+  workOrders   WorkOrder[]
+  documents    Document[]
+  signatures   Signature[]
+  invites      Invite[]
+  billingOrders BillingOrder[]
+  activityLogs ActivityLog[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  email          String   @unique
+  passwordHash   String
+  phone          String?
+  role           String   @default("TECHNICIAN") // OWNER | ADMIN | TECHNICIAN
+  isOwner        Boolean  @default(false)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workOrders  WorkOrder[]  @relation("AssignedWorkOrders")
+  signatures  Signature[]
+  activityLogs ActivityLog[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  company        String?
+  nit            String?
+  email          String?
+  phone          String?
+  address        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  projects   Project[]
+  workOrders WorkOrder[]
+  documents  Document[]
+
+  @@index([organizationId])
+  @@map("customers")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  code           String
+  name           String
+  description    String?
+  status         String   @default("PLANIFICADO") // PLANIFICADO | EN_PROGRESO | PENDIENTE_ENTREGA | COMPLETADO | CANCELADO
+  priority       String   @default("MEDIA") // BAJA | MEDIA | ALTA | URGENTE
+  startDate      DateTime?
+  dueDate        DateTime?
+  budget         Decimal? @db.Decimal(12, 2)
+  progress       Int      @default(0)
+  createdById    String
+  publicToken    String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workOrders WorkOrder[]
+  documents  Document[]
+  signatures Signature[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("projects")
+}
+
+model WorkOrder {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  code           String
+  type           String   @default("INSTALACION") // INSTALACION | ENTREGA | MANTENIMIENTO | REPARACION | SERVICIO | VISITA
+  title          String
+  description    String?
+  status         String   @default("PENDIENTE") // PENDIENTE | EN_PROGRESO | COMPLETADO | CANCELADO
+  priority       String   @default("MEDIA")
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  assignedToId   String?
+  assignedTo     User?    @relation("AssignedWorkOrders", fields: [assignedToId], references: [id], onDelete: SetNull)
+  address        String?
+  location       String?
+  checklist      Json?
+  photos         Json?
+  totalAmount    Decimal? @db.Decimal(12, 2)
+  publicToken    String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  signatures Signature[]
+  documents  Document[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("work_orders")
+}
+
+model Signature {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrderId    String?
+  workOrder      WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  signerName     String
+  signerDni      String?
+  signerRole     String   @default("CLIENTE") // CLIENTE | TECNICO | RESPONSABLE | TESTIGO
+  signerEmail    String?
+  formData       Json?
+  comments       String?
+  imageUrl       String
+  ip             String?
+  userAgent      String?
+  signedAt       DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([workOrderId])
+  @@index([projectId])
+  @@map("signatures")
+}
+
+model Document {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrderId    String?
+  workOrder      WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  type           String // COTIZACION | ORDEN_TRABAJO | ACTA_ENTREGA | PARTE_TRABAJO | FACTURA | CUSTOM
+  title          String
+  number         String
+  data           Json
+  pdfData        Bytes?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("documents")
+}
+
+model Invite {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String   @default("TECHNICIAN")
+  token          String   @unique
+  status         String   @default("PENDING") // PENDING | ACCEPTED | REVOKED
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([organizationId])
+  @@map("invites")
+}
+
+model BillingOrder {
+  id             String    @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  planCode       String
+  period         String    @default("MONTHLY") // MONTHLY | YEARLY
+  amount         Decimal   @db.Decimal(12, 2)
+  currency       String    @default("GTQ")
+  status         String    @default("PENDING") // PENDING | PAID | EXPIRED | CANCELLED
+  paymentMethod  String? // STRIPE | TRANSFERENCIA | DEPOSITO | TARJETA
+  reference      String?
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("billing_orders")
+}
+
+model ActivityLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entityType     String
+  entityId       String?
+  action         String
+  description    String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
