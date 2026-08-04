@@ -68,7 +68,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, trialEndsAt });
     }
 
-    default:
+    case "seed_owner": {
+      // Crea al propietario Total App GT (solo si no existe)
+      const existing = await prisma.user.findUnique({ where: { email: "totalappgt@gmail.com" } });
+      if (existing) return NextResponse.json({ ok: true, message: "Usuario ya existe" });
+
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.default.hash("admintotal", 10);
+      const now = new Date();
+      const trialEndsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const org = await prisma.organization.create({
+        data: {
+          name: "Total App GT",
+          slug: "totalappgt",
+          planCode: "ENTERPRISE",
+          subscriptionStatus: "ACTIVE",
+          renewsAt: trialEndsAt,
+          phone: "58303182",
+          whatsappPhone: "50258303182",
+          notifyWhatsApp: true,
+          notifyEmail: true,
+          invoicePrefix: "TP",
+        },
+      });
+
+      await prisma.user.create({
+        data: {
+          organizationId: org.id,
+          name: "Total App GT",
+          email: "totalappgt@gmail.com",
+          passwordHash: hash,
+          role: "OWNER",
+          isOwner: true,
+        },
+      });
+
+      return NextResponse.json({ ok: true, message: "Propietario creado: totalappgt@gmail.com / admintotal" });
+    }
       return NextResponse.json({ ok: false, error: "Acción desconocida" }, { status: 400 });
   }
 }
