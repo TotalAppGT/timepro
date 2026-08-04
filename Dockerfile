@@ -40,4 +40,4 @@ COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss 2>/dev/null || true; node server.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss || true; node server.js"]
