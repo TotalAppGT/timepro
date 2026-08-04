@@ -12,10 +12,11 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
   return { token, phoneNumberId, verifyToken };
 }
 
-const GRAPH_VERSION = "v21.0";
+const GRAPH_VERSION = "v22.0";
+const TEMPLATE_NAME = "notificacion_sistema_ia";
 
 export async function sendWhatsAppMessage(opts: {
-  to: string; // formato internacional sin "+", ej: 50258303182
+  to: string;
   body: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const config = getWhatsAppConfig();
@@ -30,8 +31,20 @@ export async function sendWhatsAppMessage(opts: {
       body: JSON.stringify({
         messaging_product: "whatsapp",
         to: opts.to,
-        type: "text",
-        text: { body: opts.body },
+        type: "template",
+        template: {
+          name: TEMPLATE_NAME,
+          language: { code: "es_MX" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: "TimePro" },
+                { type: "text", text: opts.body },
+              ],
+            },
+          ],
+        },
       }),
     });
     const data = await res.json();

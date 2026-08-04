@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             });
             const url = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
             const reply = wo
-              ? `✅ Encontramos tu orden ${wo.code}: "${wo.title}". Ábrela aquí para firmarla: ${url}/s/${tokenMatch[1]}`
+              ? `✅ Encontramos tu orden ${wo.code}: "${wo.title}". Ábrela aquí para firmarla: ${url}/aprobacion/${tokenMatch[1]}`
               : "Lo sentimos, no encontramos esa orden. Verifica el enlace e inténtalo de nuevo.";
             // Enviamos respuesta (requiere el token configurado; aquí se omite el envío automático por simplicidad y para evitar costos)
             console.log("[whatsapp-webhook]", from, text, "→", reply);
