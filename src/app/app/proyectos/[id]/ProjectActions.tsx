@@ -13,8 +13,7 @@ export function ProjectActions({ projectId, status }: { projectId: string; statu
   async function changeStatus(next: string) {
     setLoading(true);
     setError(null);
-    const m = await import("@/app/app/actions");
-    const r = await m.updateProjectStatus(projectId, next);
+    const r = await updateProjectStatus(projectId, next);
     if (r?.error) setError(r.error);
     router.refresh();
     setLoading(false);

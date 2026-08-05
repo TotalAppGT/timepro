@@ -22,6 +22,7 @@ export const customerSchema = z.object({
   phone: z.string().max(20).optional().or(z.literal("")),
   address: z.string().max(200).optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
+  customFields: z.record(z.string(), z.any()).optional(),
 });
 
 export const projectSchema = z.object({
@@ -47,6 +48,7 @@ export const workOrderSchema = z.object({
   address: z.string().max(250).optional().or(z.literal("")),
   location: z.string().max(250).optional().or(z.literal("")),
   totalAmount: z.string().optional().or(z.literal("")),
+  customFields: z.record(z.string(), z.any()).optional(),
 });
 
 export const inviteSchema = z.object({

@@ -9,11 +9,13 @@ export function WorkOrderForm({
   customers,
   projects,
   technicians,
+  customFieldDefs = [],
   initial,
 }: {
   customers: { id: string; name: string }[];
   projects: { id: string; name: string; code: string }[];
   technicians: { id: string; name: string; role: string }[];
+  customFieldDefs: { id: string; label: string; type: string; options?: string[] | null; required: boolean }[];
   initial?: any;
 }) {
   const router = useRouter();
@@ -29,6 +31,16 @@ export function WorkOrderForm({
     setLoading(true);
     setError(null);
     const fd = new FormData(e.currentTarget);
+    const customFields: Record<string, unknown> = {};
+    for (const def of customFieldDefs) {
+      const v = fd.get(`cf_${def.id}`);
+      const raw = typeof v === "string" ? v : "";
+      if (raw === "") continue;
+      if (def.type === "NUMBER") customFields[def.label] = Number(raw);
+      else if (def.type === "BOOLEAN") customFields[def.label] = raw === "1" || raw === "true";
+      else if (def.type === "DATE") customFields[def.label] = raw;
+      else customFields[def.label] = raw;
+    }
     const payload = {
       title: String(fd.get("title") || ""),
       type: String(fd.get("type") || "INSTALACION"),
@@ -41,6 +53,7 @@ export function WorkOrderForm({
       address: String(fd.get("address") || ""),
       location: String(fd.get("location") || ""),
       totalAmount: String(fd.get("totalAmount") || ""),
+      customFields: Object.keys(customFields).length ? customFields : undefined,
     };
     const res = await createWorkOrder(payload);
     if (res?.error) {
@@ -127,6 +140,45 @@ export function WorkOrderForm({
       <Field label="Descripción / Alcance">
         <Textarea name="description" defaultValue={initial?.description} placeholder="Qué hay que hacer, materiales, condiciones..." />
       </Field>
+
+      {customFieldDefs.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Información específica</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {customFieldDefs.map((def) => {
+              const initialValue = initial?.customFields?.[def.label] ?? "";
+              const name = `cf_${def.id}`;
+              return (
+                <Field key={def.id} label={`${def.label}${def.required ? " *" : ""}`}>
+                  {def.type === "TEXT" || def.type === "NUMBER" ? (
+                    <Input
+                      name={name}
+                      type={def.type === "NUMBER" ? "number" : "text"}
+                      defaultValue={String(initialValue ?? "")}
+                      required={def.required}
+                    />
+                  ) : def.type === "DATE" ? (
+                    <Input name={name} type="date" defaultValue={String(initialValue ?? "")} required={def.required} />
+                  ) : def.type === "BOOLEAN" ? (
+                    <Select name={name} defaultValue={String(initialValue ?? "")}>
+                      <option value="">Seleccionar...</option>
+                      <option value="1">Sí</option>
+                      <option value="0">No</option>
+                    </Select>
+                  ) : (
+                    <Select name={name} defaultValue={String(initialValue ?? "")} required={def.required}>
+                      <option value="">Seleccionar...</option>
+                      {(def.options ?? []).map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-3">
         <Button type="button" onClick={() => router.back()} className="btn-secondary">Cancelar</Button>

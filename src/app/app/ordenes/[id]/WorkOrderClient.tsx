@@ -15,7 +15,7 @@ import { Plus, Trash2, Camera, CheckCircle2, FileText, Check } from "lucide-reac
 export function WorkOrderClient({
   workOrderId,
   status,
-  isOwner,
+  isOwner: _isOwner,
   checklist: initialChecklist,
   photos: initialPhotos,
   maxPhotos,
@@ -151,7 +151,7 @@ export function WorkOrderClient({
       <div className="card p-5">
         <h2 className="mb-3 text-sm font-bold text-slate-900">Cambiar estado</h2>
         <div className="flex flex-wrap gap-2">
-          {["PENDIENTE", "EN_PROGRESO", "COMPLETADO", "CANCELADO"].map((s) => (
+          {["PENDIENTE", "EN_RUTA", "EN_EJECUCION", "REVISION", "COMPLETADO", "CANCELADO"].map((s) => (
             <Button
               key={s}
               type="button"
@@ -159,7 +159,7 @@ export function WorkOrderClient({
               disabled={loading}
               className={status === s ? "btn-primary text-xs" : "btn-secondary text-xs"}
             >
-              {s === "PENDIENTE" ? "Pendiente" : s === "EN_PROGRESO" ? "En progreso" : s === "COMPLETADO" ? "Completado" : "Cancelado"}
+              {s === "PENDIENTE" ? "Pendiente" : s === "EN_RUTA" ? "En ruta" : s === "EN_EJECUCION" ? "En ejecución" : s === "REVISION" ? "En revisión" : s === "COMPLETADO" ? "Completado" : "Cancelado"}
             </Button>
           ))}
         </div>

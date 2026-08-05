@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validation";
-import { slugify, generateCode, errorMessage } from "@/lib/utils";
+import { slugify, errorMessage } from "@/lib/utils";
 import { setSessionCookie, createSessionToken } from "@/lib/auth";
 import { trialDays, PLANS } from "@/lib/plans";
 import { sendWelcomeEmail } from "@/lib/email";
@@ -41,7 +41,7 @@ export async function registerUser(input: {
 
   try {
     const org = await prisma.$transaction(async (tx) => {
-      let slug = slugify(parsed.data.company);
+      const slug = slugify(parsed.data.company);
       let uniqueSlug = slug;
       let n = 2;
       while (await tx.organization.findUnique({ where: { slug: uniqueSlug } })) {

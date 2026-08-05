@@ -21,7 +21,7 @@ export default function PrivacyPage() {
             <div>
               <h2 className="mb-2 text-lg font-bold text-slate-900">1. Responsable del tratamiento</h2>
               <p>
-                {owner}, propietario de la plataforma <strong>TimePro</strong> ("nosotros", "TimePro"), con contacto en {email} y WhatsApp {phone}.
+                {owner}, propietario de la plataforma <strong>TimePro</strong> (&ldquo;nosotros&rdquo;, &ldquo;TimePro&rdquo;), con contacto en {email} y WhatsApp {phone}.
                 TimePro es una solución SaaS de gestión de proyectos, entregas, instalaciones y firmas digitales, operada en Guatemala.
               </p>
             </div>

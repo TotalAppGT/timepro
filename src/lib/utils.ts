@@ -91,9 +91,14 @@ export const STATUS_LABELS: Record<string, string> = {
   COMPLETADO: "Completado",
   CANCELADO: "Cancelado",
   PENDIENTE: "Pendiente",
+  EN_RUTA: "En ruta",
+  EN_EJECUCION: "En ejecución",
+  REVISION: "En revisión",
   PAID: "Pagado",
   PENDING: "Pendiente",
 };
+
+export const STATUS_ORDER: string[] = ["PENDIENTE", "EN_RUTA", "EN_EJECUCION", "REVISION", "COMPLETADO", "CANCELADO"];
 
 export const STATUS_COLORS: Record<string, string> = {
   PLANIFICADO: "bg-sky-100 text-sky-700",
@@ -102,6 +107,9 @@ export const STATUS_COLORS: Record<string, string> = {
   COMPLETADO: "bg-emerald-100 text-emerald-700",
   CANCELADO: "bg-rose-100 text-rose-700",
   PENDIENTE: "bg-sky-100 text-sky-700",
+  EN_RUTA: "bg-orange-100 text-orange-700",
+  EN_EJECUCION: "bg-amber-100 text-amber-700",
+  REVISION: "bg-violet-100 text-violet-700",
   PAID: "bg-emerald-100 text-emerald-700",
   PENDING: "bg-amber-100 text-amber-700",
 };

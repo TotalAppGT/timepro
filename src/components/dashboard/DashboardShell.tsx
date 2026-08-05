@@ -16,6 +16,8 @@ import {
   X,
   Timer,
   Sparkles,
+  Inbox,
+  Columns3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutUser } from "@/app/iniciar-sesion/actions";
@@ -23,6 +25,8 @@ import { PLANS, formatQ } from "@/lib/plans";
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: LayoutDashboard, exact: true },
+  { href: "/app/pendientes", label: "Mis pendientes", icon: Inbox },
+  { href: "/app/tablero", label: "Tablero", icon: Columns3 },
   { href: "/app/proyectos", label: "Proyectos", icon: FolderKanban },
   { href: "/app/clientes", label: "Clientes", icon: Users },
   { href: "/app/ordenes", label: "Órdenes de trabajo", icon: ClipboardList },
@@ -53,7 +57,7 @@ function daysLeft(date: Date | null): number {
 export function DashboardShell({
   orgName,
   userName,
-  userEmail,
+  userEmail: _userEmail,
   userRole,
   isOwner,
   planCode,

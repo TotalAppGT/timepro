@@ -4,7 +4,6 @@ import { LandingFooter } from "@/components/LandingFooter";
 export const metadata = { title: "Términos y Condiciones" };
 
 export default function TermsPage() {
-  const owner = process.env.OWNER_NAME || "Total App GT";
   const email = process.env.OWNER_EMAIL || "totalappgt@gmail.com";
   const phone = process.env.OWNER_PHONE || "5830 3182";
   const date = "Agosto 2026";
@@ -80,7 +79,7 @@ export default function TermsPage() {
             <div>
               <h2 className="mb-2 text-lg font-bold text-slate-900">9. Limitación de responsabilidad</h2>
               <p>
-                El servicio se ofrece "tal cual". No garantizamos disponibilidad ininterrumpida, aunque trabajamos para mantener una disponibilidad superior al 99%.
+                El servicio se ofrece &ldquo;tal cual&rdquo;. No garantizamos disponibilidad ininterrumpida, aunque trabajamos para mantener una disponibilidad superior al 99%.
                 No somos responsables por daños indirectos derivados del uso del servicio.
               </p>
             </div>

@@ -5,8 +5,6 @@ import { AprobacionForm } from "./AprobacionForm";
 
 export const metadata: Metadata = { title: "Aprobación y firma" };
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
 const DEFAULT_CONFIRMATIONS = [
   "Confirmo que recibí el servicio de forma satisfactoria.",
   "Confirmo que el personal se comportó de forma profesional y puntual.",

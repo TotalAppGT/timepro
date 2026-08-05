@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Timer } from "lucide-react";
 import { prisma } from "@/lib/prisma";

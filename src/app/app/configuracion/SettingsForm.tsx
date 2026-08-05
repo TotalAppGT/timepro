@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrgSettings, updateOrgLogo } from "@/app/app/actions";
-import { Input, Textarea, Button, Field, Alert } from "@/components/ui";
+import { Input, Button, Field, Alert } from "@/components/ui";
 import { Upload } from "lucide-react";
 
 export function SettingsForm({ org, isOwner }: { org: any; isOwner: boolean }) {

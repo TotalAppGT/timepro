@@ -22,7 +22,7 @@ export default async function WorkOrdersPage() {
   const counts = {
     all: orders.length,
     pendiente: orders.filter((o) => o.status === "PENDIENTE").length,
-    progreso: orders.filter((o) => o.status === "EN_PROGRESO").length,
+    progreso: orders.filter((o) => ["EN_RUTA", "EN_EJECUCION", "REVISION"].includes(o.status)).length,
     completado: orders.filter((o) => o.status === "COMPLETADO").length,
   };
 

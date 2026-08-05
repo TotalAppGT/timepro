@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireOwner } from "@/lib/auth";
 import { getPlan } from "@/lib/plans";
@@ -13,17 +12,15 @@ import {
   orgSettingsSchema,
   profileSchema,
 } from "@/lib/validation";
-import { generateCode, generateToken, errorMessage } from "@/lib/utils";
+import { generateCode, generateToken } from "@/lib/utils";
 import { logActivity } from "@/lib/activity";
-import { buildAndSaveDocument, docDataFromWorkOrder } from "@/lib/documents";
+import { buildAndSaveDocument } from "@/lib/documents";
 import { generateDocumentPdf } from "@/lib/pdf/generator";
 import { sendWorkOrderNotification, sendEmail, baseEmailLayout } from "@/lib/email";
 import { sendWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { uploadDataUrl } from "@/lib/uploads";
 import { trialDays } from "@/lib/plans";
 import bcrypt from "bcryptjs";
-
-const phone = (v: unknown) => (typeof v === "string" ? v : "");
 
 // ============================= CLIENTES =============================
 
@@ -33,7 +30,17 @@ export async function createCustomer(input: unknown) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
 
   await prisma.customer.create({
-    data: { ...parsed.data, organizationId: ctx.orgId },
+    data: {
+      name: parsed.data.name,
+      company: parsed.data.company,
+      nit: parsed.data.nit,
+      email: parsed.data.email,
+      phone: parsed.data.phone,
+      address: parsed.data.address,
+      notes: parsed.data.notes,
+      customFields: parsed.data.customFields && Object.keys(parsed.data.customFields).length ? parsed.data.customFields : undefined,
+      organizationId: ctx.orgId,
+    },
   });
   await logActivity({ orgId: ctx.orgId, userId: ctx.id, entityType: "CUSTOMER", action: "CREATE", description: `Cliente creado: ${parsed.data.name}` });
   revalidatePath("/app/clientes");
@@ -48,7 +55,19 @@ export async function updateCustomer(id: string, input: unknown) {
   const exists = await prisma.customer.findFirst({ where: { id, organizationId: ctx.orgId } });
   if (!exists) return { error: "Cliente no encontrado" };
 
-  await prisma.customer.update({ where: { id }, data: parsed.data });
+  await prisma.customer.update({
+    where: { id },
+    data: {
+      name: parsed.data.name,
+      company: parsed.data.company,
+      nit: parsed.data.nit,
+      email: parsed.data.email,
+      phone: parsed.data.phone,
+      address: parsed.data.address,
+      notes: parsed.data.notes,
+      customFields: parsed.data.customFields && Object.keys(parsed.data.customFields).length ? parsed.data.customFields : undefined,
+    },
+  });
   revalidatePath("/app/clientes");
   return { ok: true };
 }
@@ -156,6 +175,7 @@ export async function createWorkOrder(input: unknown) {
       totalAmount: parsed.data.totalAmount ? Number(parsed.data.totalAmount) : null,
       checklist: [],
       photos: [],
+      customFields: parsed.data.customFields && Object.keys(parsed.data.customFields).length ? parsed.data.customFields : {},
       publicToken: generateToken(16),
     },
     include: {
@@ -212,6 +232,7 @@ export async function updateWorkOrder(id: string, input: unknown) {
       address: parsed.data.address || null,
       location: parsed.data.location || null,
       totalAmount: parsed.data.totalAmount ? Number(parsed.data.totalAmount) : null,
+      customFields: parsed.data.customFields && Object.keys(parsed.data.customFields).length ? parsed.data.customFields : {},
     },
   });
   revalidatePath(`/app/ordenes/${id}`);
@@ -221,7 +242,7 @@ export async function updateWorkOrder(id: string, input: unknown) {
 
 export async function updateWorkOrderStatus(id: string, status: string) {
   const ctx = await requireSession();
-  const valid = ["PENDIENTE", "EN_PROGRESO", "COMPLETADO", "CANCELADO"];
+  const valid = ["PENDIENTE", "EN_RUTA", "EN_EJECUCION", "REVISION", "COMPLETADO", "CANCELADO"];
   if (!valid.includes(status)) return { error: "Estado no válido" };
 
   await prisma.workOrder.update({
@@ -234,6 +255,92 @@ export async function updateWorkOrderStatus(id: string, status: string) {
   await logActivity({ orgId: ctx.orgId, userId: ctx.id, entityType: "WORK_ORDER", entityId: id, action: "STATUS", description: `Estado cambiado a ${status}` });
   revalidatePath(`/app/ordenes/${id}`);
   revalidatePath("/app/ordenes");
+  revalidatePath("/app/tablero");
+  revalidatePath("/app/pendientes");
+  return { ok: true };
+}
+
+// ============================= TABLERO KANBAN =============================
+
+export async function moveWorkOrderKanban(id: string, status: string) {
+  const ctx = await requireSession();
+  const valid = ["PENDIENTE", "EN_RUTA", "EN_EJECUCION", "REVISION", "COMPLETADO", "CANCELADO"];
+  if (!valid.includes(status)) return { error: "Estado no válido" };
+
+  const exists = await prisma.workOrder.findFirst({ where: { id, organizationId: ctx.orgId } });
+  if (!exists) return { error: "Orden no encontrada" };
+
+  await prisma.workOrder.update({
+    where: { id },
+    data: {
+      status,
+      ...(status === "COMPLETADO" ? { completedAt: new Date() } : {}),
+    },
+  });
+  await logActivity({ orgId: ctx.orgId, userId: ctx.id, entityType: "WORK_ORDER", entityId: id, action: "STATUS", description: `Orden ${exists.code} movida a ${status}` });
+  revalidatePath("/app/tablero");
+  revalidatePath("/app/ordenes");
+  revalidatePath("/app/pendientes");
+  return { ok: true };
+}
+
+// ============================= CAMPOS PERSONALIZADOS =============================
+
+export async function getCustomFields(entityType: string) {
+  const ctx = await requireSession();
+  if (!["WORK_ORDER", "CUSTOMER"].includes(entityType)) return { fields: [] };
+  const fields = await prisma.customFieldDef.findMany({
+    where: { organizationId: ctx.orgId, entityType, active: true },
+    orderBy: { position: "asc" },
+  });
+  return { fields };
+}
+
+export async function saveCustomFieldDefs(input: {
+  entityType: string;
+  fields: { id?: string; label: string; type: string; options?: string[]; required: boolean; position: number; active: boolean }[];
+}) {
+  const ctx = await requireOwner();
+  if (!["WORK_ORDER", "CUSTOMER"].includes(input.entityType)) return { error: "Tipo no válido" };
+
+  const existing = await prisma.customFieldDef.findMany({
+    where: { organizationId: ctx.orgId, entityType: input.entityType },
+    select: { id: true },
+  });
+  const existingIds = new Set(existing.map((e) => e.id));
+  const submittedIds = new Set(input.fields.map((f) => f.id).filter(Boolean) as string[]);
+
+  // Marcar como inactivos los que ya no están
+  for (const e of existing) {
+    if (!submittedIds.has(e.id)) {
+      await prisma.customFieldDef.update({ where: { id: e.id }, data: { active: false } });
+    }
+  }
+
+  for (const f of input.fields) {
+    const options = f.type === "SELECT" ? (f.options ?? []).filter(Boolean) : undefined;
+    if (f.id && existingIds.has(f.id)) {
+      await prisma.customFieldDef.update({
+        where: { id: f.id },
+        data: { label: f.label, type: f.type, options, required: f.required, position: f.position, active: true },
+      });
+    } else {
+      await prisma.customFieldDef.create({
+        data: {
+          organizationId: ctx.orgId,
+          entityType: input.entityType,
+          label: f.label,
+          type: f.type,
+          options,
+          required: f.required,
+          position: f.position,
+          active: true,
+        },
+      });
+    }
+  }
+
+  revalidatePath("/app/configuracion");
   return { ok: true };
 }
 
@@ -632,7 +739,6 @@ export async function createBillingOrder(input: { planCode: string; period: "MON
   });
 
   // Correo con instrucciones
-  const org = await prisma.organization.findUnique({ where: { id: ctx.orgId } });
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   sendEmail({
     to: ctx.email,

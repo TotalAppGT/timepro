@@ -1,4 +1,4 @@
-import { requireSession, requireOwner } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPlan } from "@/lib/plans";
 import { Badge } from "@/components/ui";

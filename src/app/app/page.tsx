@@ -25,10 +25,11 @@ export default async function DashboardPage() {
     signaturesMonth,
     recentOrders,
     overdue,
+    technicians,
   ] = await Promise.all([
     prisma.project.count({ where: { organizationId: ctx.orgId } }),
     prisma.customer.count({ where: { organizationId: ctx.orgId } }),
-    prisma.workOrder.findMany({ where: { organizationId: ctx.orgId }, select: { status: true, createdAt: true, completedAt: true } }),
+    prisma.workOrder.findMany({ where: { organizationId: ctx.orgId }, select: { status: true, createdAt: true, completedAt: true, totalAmount: true } }),
     prisma.signature.count({
       where: { organizationId: ctx.orgId, signedAt: { gte: new Date(new Date().setDate(1)) } },
     }),
@@ -41,17 +42,21 @@ export default async function DashboardPage() {
     prisma.workOrder.findMany({
       where: {
         organizationId: ctx.orgId,
-        status: { in: ["PENDIENTE", "EN_PROGRESO"] },
+        status: { in: ["PENDIENTE", "EN_RUTA", "EN_EJECUCION", "REVISION"] },
         scheduledAt: { lt: new Date() },
       },
       orderBy: { scheduledAt: "asc" },
       take: 5,
       include: { customer: true },
     }),
+    prisma.workOrder.findMany({
+      where: { organizationId: ctx.orgId },
+      select: { assignedToId: true, assignedTo: { select: { name: true } }, status: true },
+    }),
   ]);
 
   const pending = workOrders.filter((w) => w.status === "PENDIENTE").length;
-  const inProgress = workOrders.filter((w) => w.status === "EN_PROGRESO").length;
+  const inProgress = workOrders.filter((w) => ["EN_RUTA", "EN_EJECUCION", "REVISION"].includes(w.status)).length;
   const completed = workOrders.filter((w) => w.status === "COMPLETADO").length;
   const cancelled = workOrders.filter((w) => w.status === "CANCELADO").length;
 
@@ -78,6 +83,20 @@ export default async function DashboardPage() {
 
   const plan = getPlan(ctx.planCode);
   const totalMonth = workOrders.length;
+
+  // Métricas financieras y de rendimiento
+  const totalRevenue = workOrders.reduce((s, w) => s + (Number(w.totalAmount) || 0), 0);
+  const completedThisMonth = workOrders.filter((w) => w.completedAt && w.completedAt.getMonth() === new Date().getMonth() && w.completedAt.getFullYear() === new Date().getFullYear()).length;
+
+  const techMap = new Map<string, { name: string; total: number; done: number }>();
+  for (const w of technicians) {
+    if (!w.assignedToId) continue;
+    const t = techMap.get(w.assignedToId) ?? { name: w.assignedTo?.name ?? "Técnico", total: 0, done: 0 };
+    t.total += 1;
+    if (w.status === "COMPLETADO") t.done += 1;
+    techMap.set(w.assignedToId, t);
+  }
+  const techStats = Array.from(techMap.values()).sort((a, b) => b.total - a.total).slice(0, 5);
 
   const kpis = [
     { label: "Proyectos", value: projectsCount, icon: FolderKanban, href: "/app/proyectos" },
@@ -200,6 +219,87 @@ export default async function DashboardPage() {
             </span>
           </div>
           <ActivityFeed orgId={ctx.orgId} />
+        </div>
+      </div>
+
+      {/* Métricas gerenciales */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="card p-5 lg:col-span-1">
+          <h2 className="mb-4 text-sm font-bold text-slate-900">Pipeline de órdenes</h2>
+          {workOrders.length === 0 ? (
+            <p className="text-sm text-slate-400">Crea órdenes para ver el pipeline.</p>
+          ) : (
+            <div className="space-y-3">
+              {[
+                { label: "Pendientes", value: pending, color: "bg-sky-500" },
+                { label: "En ruta", value: workOrders.filter((w) => w.status === "EN_RUTA").length, color: "bg-orange-500" },
+                { label: "En ejecución", value: workOrders.filter((w) => w.status === "EN_EJECUCION").length, color: "bg-amber-500" },
+                { label: "En revisión", value: workOrders.filter((w) => w.status === "REVISION").length, color: "bg-violet-500" },
+                { label: "Completadas", value: completed, color: "bg-emerald-500" },
+                { label: "Canceladas", value: cancelled, color: "bg-rose-400" },
+              ].map((row) => {
+                const pct = totalMonth > 0 ? Math.round((row.value / totalMonth) * 100) : 0;
+                return (
+                  <div key={row.label}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="font-medium text-slate-600">{row.label}</span>
+                      <span className="font-bold text-slate-800">{row.value} · {pct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full ${row.color}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="card p-5 lg:col-span-1">
+          <h2 className="mb-4 text-sm font-bold text-slate-900">Rendimiento del equipo</h2>
+          {techStats.length === 0 ? (
+            <p className="text-sm text-slate-400">Asigna órdenes a técnicos para ver el rendimiento.</p>
+          ) : (
+            <ul className="space-y-3">
+              {techStats.map((t) => (
+                <li key={t.name} className="flex items-center gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                    {t.name.charAt(0)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{t.name}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-brand-500" style={{ width: `${t.total > 0 ? Math.round((t.done / t.total) * 100) : 0}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-500">{t.done}/{t.total}</span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="card p-5 lg:col-span-1">
+          <h2 className="mb-4 text-sm font-bold text-slate-900">Resumen financiero</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span className="text-sm text-slate-500">Completadas este mes</span>
+              <span className="text-sm font-bold text-slate-900">{completedThisMonth}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span className="text-sm text-slate-500">Monto total registrado</span>
+              <span className="text-sm font-bold text-brand-700">{formatQ(totalRevenue)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <span className="text-sm text-slate-500">Canceladas</span>
+              <span className="text-sm font-bold text-rose-600">{cancelled}</span>
+            </div>
+            <Link href="/app/tablero" className="btn-secondary mt-2 w-full text-sm">
+              Ver tablero <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

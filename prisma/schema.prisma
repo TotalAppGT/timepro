@@ -48,6 +48,7 @@ model Organization {
   invites      Invite[]
   billingOrders BillingOrder[]
   activityLogs ActivityLog[]
+  customFieldDefs CustomFieldDef[]
 
   @@map("organizations")
 }
@@ -85,6 +86,7 @@ model Customer {
   phone          String?
   address        String?
   notes          String?
+  customFields   Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -137,7 +139,7 @@ model WorkOrder {
   type           String   @default("INSTALACION") // INSTALACION | ENTREGA | MANTENIMIENTO | REPARACION | SERVICIO | VISITA
   title          String
   description    String?
-  status         String   @default("PENDIENTE") // PENDIENTE | EN_PROGRESO | COMPLETADO | CANCELADO
+  status         String   @default("PENDIENTE") // PENDIENTE | EN_RUTA | EN_EJECUCION | REVISION | COMPLETADO | CANCELADO
   priority       String   @default("MEDIA")
   scheduledAt    DateTime?
   completedAt    DateTime?
@@ -147,6 +149,7 @@ model WorkOrder {
   location       String?
   checklist      Json?
   photos         Json?
+  customFields   Json?
   totalAmount    Decimal? @db.Decimal(12, 2)
   publicToken    String?  @unique
   createdAt      DateTime @default(now())
@@ -259,4 +262,21 @@ model ActivityLog {
   @@index([organizationId])
   @@index([entityType, entityId])
   @@map("activity_logs")
+}
+
+model CustomFieldDef {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entityType     String   @default("WORK_ORDER") // WORK_ORDER | CUSTOMER
+  label          String
+  type           String   @default("TEXT") // TEXT | NUMBER | DATE | BOOLEAN | SELECT
+  options        Json?    // para SELECT
+  required       Boolean  @default(false)
+  position       Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, entityType])
+  @@map("custom_field_defs")
 }

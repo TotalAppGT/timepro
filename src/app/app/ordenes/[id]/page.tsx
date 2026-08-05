@@ -60,6 +60,19 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         <Info label="Completada" value={formatDate(wo.completedAt)} />
       </div>
 
+      {(wo.customFields && typeof wo.customFields === "object" && Object.keys(wo.customFields as object).length > 0) && (
+        <div className="card p-5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Información específica</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {Object.entries(wo.customFields as Record<string, unknown>).map(([k, v]) => {
+              const label = k;
+              const value = v === true ? "Sí" : v === false ? "No" : v === null || v === undefined || v === "" ? "—" : String(v);
+              return <Info key={k} label={label} value={value} />;
+            })}
+          </div>
+        </div>
+      )}
+
       {ctx.planCode !== "BASIC" && (
         <ApprovalLinkCard
           type="WORKORDER"
