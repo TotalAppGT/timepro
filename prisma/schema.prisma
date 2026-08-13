@@ -49,6 +49,7 @@ model Organization {
   billingOrders BillingOrder[]
   activityLogs ActivityLog[]
   customFieldDefs CustomFieldDef[]
+  workOrderMessages WorkOrderMessage[]
 
   @@map("organizations")
 }
@@ -157,6 +158,7 @@ model WorkOrder {
 
   signatures Signature[]
   documents  Document[]
+  messages    WorkOrderMessage[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -262,6 +264,22 @@ model ActivityLog {
   @@index([organizationId])
   @@index([entityType, entityId])
   @@map("activity_logs")
+}
+
+model WorkOrderMessage {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrderId    String
+  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId         String?
+  authorName     String
+  content        String
+  attachments    Json?    // URLs de fotos/archivos
+  createdAt      DateTime @default(now())
+
+  @@index([workOrderId])
+  @@map("work_order_messages")
 }
 
 model CustomFieldDef {

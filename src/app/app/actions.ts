@@ -804,6 +804,38 @@ export async function extendTrial(days?: number) {
   return { ok: true };
 }
 
+// ============================= CHAT POR ORDEN =============================
+
+export async function sendWorkOrderMessage(workOrderId: string, content: string, attachmentDataUrls?: string[]) {
+  const ctx = await requireSession();
+  if (!content.trim() && (!attachmentDataUrls || attachmentDataUrls.length === 0)) return { error: "Escribe un mensaje o adjunta una imagen" };
+
+  const wo = await prisma.workOrder.findFirst({ where: { id: workOrderId, organizationId: ctx.orgId } });
+  if (!wo) return { error: "Orden no encontrada" };
+
+  const attachments: string[] = [];
+  if (attachmentDataUrls) {
+    for (const url of attachmentDataUrls.slice(0, 4)) {
+      const stored = await uploadDataUrl(url, `orgs/${ctx.orgId}/chat`);
+      attachments.push(stored.url);
+    }
+  }
+
+  await prisma.workOrderMessage.create({
+    data: {
+      organizationId: ctx.orgId,
+      workOrderId,
+      userId: ctx.id,
+      authorName: ctx.name,
+      content: content.trim() || "[Imagen adjunta]",
+      attachments: attachments.length ? attachments : undefined,
+    },
+  });
+
+  revalidatePath(`/app/ordenes/${workOrderId}`);
+  return { ok: true };
+}
+
 // ============================= INVITACIÓN PÚBLICA =============================
 
 export async function acceptInvite(token: string, input: { name: string; email: string; password: string }) {

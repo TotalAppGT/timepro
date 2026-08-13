@@ -7,6 +7,7 @@ import { STATUS_COLORS, STATUS_LABELS, WORKORDER_TYPES, formatQ, formatDateTime,
 import { Badge } from "@/components/ui";
 import { ApprovalLinkCard } from "@/components/ApprovalLinkCard";
 import { WorkOrderClient } from "./WorkOrderClient";
+import { WorkOrderChat } from "./WorkOrderChat";
 
 export const metadata = { title: "Orden de trabajo" };
 
@@ -22,6 +23,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       assignedTo: true,
       signatures: { orderBy: { signedAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
+      messages: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!wo) notFound();
@@ -98,6 +100,19 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         photos={photos}
         maxPhotos={ctx.planCode === "ENTERPRISE" ? 1000 : ctx.planCode === "PRO" ? 100 : 20}
         canPortal={ctx.planCode !== "BASIC"}
+      />
+
+      <WorkOrderChat
+        workOrderId={wo.id}
+        userName={ctx.name}
+        messages={wo.messages.map((m) => ({
+          id: m.id,
+          authorName: m.authorName,
+          content: m.content,
+          attachments: m.attachments as string[] | null,
+          createdAt: m.createdAt.toISOString(),
+          isMine: m.userId === ctx.id,
+        }))}
       />
 
       <div className="card p-5">
